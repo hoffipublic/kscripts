@@ -1,0 +1,15 @@
+[
+  {
+    "node": "hosta;10.0.0.20;37038",
+    "adjacency": "hostb;10.0.0.10;4001",
+    "ommitA": "ignore this 1A",
+    "ommitB": "ignore this 1B"
+  },
+  {
+    "node": "hostc;10.0.0.16;52732",
+    "adjacency": "hostd;10.0.0.24;4040",
+    "ommitA": "ignore this 2A",
+    "ommitB": "ignore this 2B"
+  }
+]
+
