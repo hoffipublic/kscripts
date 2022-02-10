@@ -1,10 +1,10 @@
 
 import kotlinx.datetime.*
+import kotlinx.datetime.DayOfWeek
 import java.awt.Toolkit
 import java.awt.datatransfer.Clipboard
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
-import java.time.DayOfWeek
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
@@ -17,10 +17,12 @@ fun main(args: Array<String>) {
     timeElapsed("2021-12-31T20:50:00+01:00", "2022-02-03T14:01:01+01:00")
 }
 
-fun timeElapsed(startDateTimeIso: String, endDateTimeIso: String, timeZoneIdString: String = "Europe/Berlin"): Duration {
+fun timeElapsed(startDateTimeIso: String, endDateTimeIso: String, onlyWithinServiceTimes: Boolean = true, timeZoneIdString: String = "Europe/Berlin", desc: String = ""): Duration {
     val timeZone = TimeZone.of(timeZoneIdString)
     val morningTime =  8 // o'clock
     val closingTime = 20 // o'clock
+    val serviceHours = closingTime - morningTime
+    val serviceHoursMillis = serviceHours * 3_600_000L
 
     val startInstant = Instant.parse(startDateTimeIso)
     val startDateTime = startInstant.toLocalDateTime(timeZone)
@@ -29,18 +31,49 @@ fun timeElapsed(startDateTimeIso: String, endDateTimeIso: String, timeZoneIdStri
 
     // we first eliminate an edge case, for if the issue was solved on the same day or next day until morning
     // anything else goes into the "multi-days issue" algorithm below
-    val sameDayMorningDateTime = with(startDateTime) {
-        LocalDateTime(year, month, dayOfMonth, morningTime, 0)
-    }
+    val sameDayMorningDateTime = with(startDateTime) { LocalDateTime(year, month, dayOfMonth, morningTime, 0) }
     val sameDayMorningInstant = sameDayMorningDateTime.toInstant(timeZone)
     if (endInstant < sameDayMorningInstant) {
         // issue was opened and finished before morning
-        return (endInstant.toEpochMilliseconds() - startInstant.toEpochMilliseconds()).toDuration(DurationUnit.MILLISECONDS)
+        if (onlyWithinServiceTimes) {
+            return Duration.ZERO
+        } else {
+            return (endInstant.toEpochMilliseconds() - startInstant.toEpochMilliseconds()).toDuration(DurationUnit.MILLISECONDS)
+        }
     }
+    val sameDayClosingDateTime = with(startDateTime) { LocalDateTime(year, month, dayOfMonth, closingTime, 0) }
+    val sameDayClosingInstant = sameDayClosingDateTime.toInstant(timeZone)
     if(endInstant < sameDayMorningInstant + 24.hours) {
         // same day solved or solved until next day morning
         // endTime - sameDayMorning
-        return (endInstant.toEpochMilliseconds() - sameDayMorningInstant.toEpochMilliseconds()).toDuration(DurationUnit.MILLISECONDS)
+        if (onlyWithinServiceTimes) {
+            if (startDateTime.dayOfWeek == DayOfWeek.SATURDAY || startDateTime.dayOfWeek == DayOfWeek.SUNDAY) return Duration.ZERO
+            if (startInstant < sameDayMorningInstant) {
+                // start before morning
+                if (endInstant > sameDayClosingInstant) {
+                    return serviceHoursMillis.toDuration(DurationUnit.MILLISECONDS)
+                } else {
+                    return (endInstant.toEpochMilliseconds() - sameDayMorningInstant.toEpochMilliseconds()).toDuration(DurationUnit.MILLISECONDS)
+                }
+            } else {
+                // start after morning
+                if (startInstant > sameDayClosingInstant) {
+                    return Duration.ZERO
+                } else {
+                    if (endInstant > sameDayClosingInstant) {
+                        return (sameDayClosingInstant.toEpochMilliseconds() - startInstant.toEpochMilliseconds()).toDuration(DurationUnit.MILLISECONDS)
+                    } else {
+                        return (endInstant.toEpochMilliseconds()            - startInstant.toEpochMilliseconds()).toDuration(DurationUnit.MILLISECONDS)
+                    }
+                }
+            }
+        } else {
+            if ( startInstant < sameDayMorningInstant) {
+                return (endInstant.toEpochMilliseconds() - sameDayMorningInstant.toEpochMilliseconds()).toDuration(DurationUnit.MILLISECONDS)
+            } else {
+                return (endInstant.toEpochMilliseconds() - startInstant.toEpochMilliseconds()).toDuration(DurationUnit.MILLISECONDS)
+            }
+        }
     }
 
     // =====================
@@ -59,7 +92,9 @@ fun timeElapsed(startDateTimeIso: String, endDateTimeIso: String, timeZoneIdStri
         }
         else -> {
             // start was within business times
-            startOffsetFromMorning = startInstant - sameDayMorningInstant
+            if (startDateTime.dayOfWeek != DayOfWeek.SATURDAY && startDateTime.dayOfWeek != DayOfWeek.SUNDAY) {
+                startOffsetFromMorning = startInstant - sameDayMorningInstant
+            }
             // we do our algorithm always from morningTime
             // and adjust the startOffset at the end of it
             sameDayMorningInstant
@@ -86,11 +121,7 @@ fun timeElapsed(startDateTimeIso: String, endDateTimeIso: String, timeZoneIdStri
     // either of the same day, or the morning of the next workday
     // only if start was within business time, startOffset duration is > 0
 
-    val serviceHours = closingTime - morningTime
-    val serviceHoursMillis = serviceHours * 3_600_000L
-
     var iterInstant = actualStartInstant   // time part is always morning time
-    val iterDateTime = actualStartDateTime // time part is always morning time
     var durationMillis = 0L
     while (true) {
         if ( (iterInstant + 1.days) <= endInstant) {
@@ -99,7 +130,32 @@ fun timeElapsed(startDateTimeIso: String, endDateTimeIso: String, timeZoneIdStri
         } else {
             // now at day of solving (up to next morning, as iterInstant is always morning time)
             // startOffset was > 0 (start - sameDayMorning) if start was within business times, 0 otherwise
-            durationMillis += (endInstant - iterInstant - startOffsetFromMorning).inWholeMilliseconds
+            val endDateTime = endInstant.toLocalDateTime(timeZone)
+            if (onlyWithinServiceTimes) {
+                if (endDateTime.dayOfWeek == DayOfWeek.SATURDAY || endDateTime.dayOfWeek == DayOfWeek.SUNDAY ||
+                    (endDateTime.dayOfWeek == DayOfWeek.MONDAY && endDateTime.hour < morningTime)
+                ) {
+                    // solved at a saturday or sunday or a monday before morning
+                    durationMillis -= startOffsetFromMorning.inWholeMilliseconds
+                    break
+                }
+                with (endDateTime) {
+                    val closingDateTime = LocalDateTime(year, month, dayOfMonth, closingTime, 0)
+                    if (endDateTime > closingDateTime) {
+                        durationMillis += (closingDateTime.toInstant(timeZone) - iterInstant - startOffsetFromMorning).inWholeMilliseconds
+                    } else {
+                        durationMillis += (endInstant                          - iterInstant - startOffsetFromMorning).inWholeMilliseconds
+                    }
+                }
+            } else {
+                if (endDateTime.dayOfWeek == DayOfWeek.SATURDAY || endDateTime.dayOfWeek == DayOfWeek.SUNDAY ||
+                    (endDateTime.dayOfWeek == DayOfWeek.MONDAY && endDateTime.hour < morningTime)
+                ) {
+                    durationMillis -= startOffsetFromMorning.inWholeMilliseconds
+                } else {
+                    durationMillis += (endInstant - iterInstant - startOffsetFromMorning).inWholeMilliseconds.coerceAtLeast(0L)
+                }
+            }
             break
         }
         when (iterWeekday) {
