@@ -77,7 +77,7 @@ fun timeElapsed(startDateTimeIso: String, endDateTimeIso: String, onlyWithinServ
     }
 
     // =====================
-    // "multi-days issue
+    // multi-days issue
     // =====================
     // actualStart is either within business Times
     // or at the morning of the same day

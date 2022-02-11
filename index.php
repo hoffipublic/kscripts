@@ -5,25 +5,29 @@ function timeElapsed(DateTimeImmutable $startDateTime, DateTimeImmutable $endDat
     $openingTime = 8;
     $closingTime = 20;
     $timeZone = new DateTimeZone("Europe/Berlin");
-
     $startDayOpeningTime = $startDateTime->setTime($openingTime,0);
     $startDayClosingTime = $startDateTime->setTime($closingTime,0);
     $endDayOpeningTime = $endDateTime->setTime($openingTime,0);
     $endDayClosingTime = $endDateTime->setTime($closingTime,0);
     $dailyOpeningDuration = new DateInterval( "PT".($closingTime-$openingTime)."H" );
 
-    // if issue was opened and closed before on the same day before opening time
+    // we first eliminate edge cases, for if the issue was solved on the same day or next day until openingTime
+    // anything else goes into the "multi-days issue" algorithm below
+
     if($endDateTime < $startDayOpeningTime){
+        // issue was opened and finished before openingTime
         if($onlyCountServiceTimes){
             return new DateInterval("PT0H");
         }
         return $startDateTime->diff($endDateTime);
     }
-
-    // if issue was resolved within one workday
-    if($endDateTime < $startDayOpeningTime->add(new DateInterval("P1D"))){
-        if($onlyCountServiceTimes && ($startDateTime > $startDayClosingTime)) {
+    if($endDateTime < ($startDayOpeningTime->add(new DateInterval("P1D")))) {
+        // solved on the same day or until next day before opening
+        if($startDateTime->format("N") >=6 ) {// 1=Monday, 7=Sunday
             return new DateInterval("PT0H");
+        }
+        if($onlyCountServiceTimes && ($startDateTime > $startDayClosingTime)) {
+                return new DateInterval("PT0H");
         }
         $adjustedEndTime = $onlyCountServiceTimes && ($endDateTime > $startDayClosingTime) ? $startDayClosingTime : $endDateTime;
         $adjustedStartTime = $startDateTime < $startDayOpeningTime ? $startDayOpeningTime : $startDateTime;
@@ -88,6 +92,26 @@ function dateIntervalToSeconds(DateInterval $interval): int {
     $newValue = $referenceValue->add($interval);
 
     return $newValue->getTimestamp() - $referenceValue->getTimestamp();
+}
+
+/**
+ * Simple helper to debug to the console
+ *
+ * @param $data object, array, string $data
+ * @param $context string  Optional a description.
+ *
+ * @return string
+ */
+function debugToConsole($data, $context = 'Debug in Console') {
+
+    // Buffering to solve problems frameworks, like header() in this and not a solid return.
+    ob_start();
+
+    $output  = 'console.info(\'' . $context . ':\');';
+    $output .= 'console.log(' . json_encode($data) . ');';
+    $output  = sprintf('<script>%s</script>', $output);
+
+    echo $output;
 }
 
 $testCases = [
