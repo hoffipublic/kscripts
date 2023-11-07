@@ -1,8 +1,8 @@
 import org.gradle.configurationcache.extensions.serviceOf
 
 plugins {
-    kotlin("jvm") version "1.6.10"
-    id("com.github.johnrengelman.shadow") version "7.1.2"
+    kotlin("jvm") version BuildSrcGlobal.VersionKotlin
+    id("com.github.johnrengelman.shadow") version PluginDeps.PluginShadow.version
     //id("org.panteleyev.jpackageplugin") version "1.3.1"
     application
 }
@@ -19,13 +19,13 @@ application {
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.3.2")
-    implementation("com.github.ajalt.clikt:clikt:3.4.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-datetime:${Deps.KotlinxDatetime.version}")
+    implementation("com.github.ajalt.clikt:clikt:${Deps.Clikt.version}")
 
     testImplementation(kotlin("test"))
-    testImplementation("io.kotest:kotest-runner-junit5:5.1.0")
-    testImplementation("io.kotest:kotest-assertions-core:5.1.0")
-    testImplementation("io.kotest:kotest-framework-datatest-jvm:5.1.0")
+    testImplementation("io.kotest:kotest-runner-junit5:${Deps.Kotest.version}")
+    testImplementation("io.kotest:kotest-assertions-core:${Deps.Kotest.version}")
+    testImplementation("io.kotest:kotest-framework-datatest-jvm:${Deps.Kotest.version}")
 }
 
 tasks.named<JavaExec>("run") {
@@ -34,11 +34,15 @@ tasks.named<JavaExec>("run") {
 }
 
 kotlin {
-    jvmToolchain {
-        (this as JavaToolchainSpec).languageVersion.set(JavaLanguageVersion.of(17))
-        vendor.set(JvmVendorSpec.ADOPTIUM)
+    jvmToolchain(BuildSrcGlobal.jdkVersion)
+}
+
+val writeProjectDir by tasks.registering {
+    doLast {
+        File(project.projectDir, "src/main/resources/ProjectPath.txt").writeText(project.projectDir.toString())
     }
 }
+tasks.named("build") { finalizedBy(writeProjectDir) }
 
 tasks.test {
     useJUnitPlatform()
