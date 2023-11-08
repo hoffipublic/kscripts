@@ -1,41 +1,40 @@
-import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.configurationcache.extensions.serviceOf
 import org.gradle.internal.logging.text.StyledTextOutput
 import kotlin.reflect.full.declaredMemberProperties
 
-object BuildSrcGlobal {
-    val ESCAPE = '\u001B'
-    val JavaLanguageVersion = org.gradle.jvm.toolchain.JavaLanguageVersion.of(17)
-    val jdkVersion = JavaLanguageVersion.asInt()
-    val VersionKotlin = "1.7.21"
+object BuildLogicGlobal {
+    // defined libs.XXX extension prooperties defined in ROOT/buildLogic/src/main/kotlin/VersionCatalogExtensions.kt
+    // set in kotlinCommonBuildLogic.gradle.kts
+    var jdkVersion: Int = 0 // lateinit in buildLogic/src/main/kotlin/Build*.gradle.kts
+    val JavaLanguageVersion by lazy  { org.gradle.jvm.toolchain.JavaLanguageVersion.of(jdkVersion) }
+    var kotlinVersion: String = "0" // lateinit in buildLogic/src/main/kotlin/Build*.gradle.kts
+    var composeVersion: String = "0" // lateinit in buildLogic/src/main/kotlin/Build*.gradle.kts
+
+    // constants
+    val someGlobalProp = "Hoffi's global prop in BuildLogic composite gradle build"
     val jvmVendor = org.gradle.jvm.toolchain.JvmVendorSpec.ADOPTIUM
+
+    // system derived
     var posixHost = false
-    enum class HOSTOS { WINDOWS, MAC, LINUX }
-    val hostOS = with(System.getProperty("os.name").toLowerCase()) { when  {
+    enum class HOSTOS { WINDOWS, MACOS, LINUX }
+    val hostOS = with(System.getProperty("os.name").lowercase()) { when  {
         indexOf("win") >= 0 -> HOSTOS.WINDOWS
-        indexOf("mac") >= 0 -> { posixHost = true ; HOSTOS.MAC }
+        indexOf("mac") >= 0 -> { posixHost = true ; HOSTOS.MACOS }
         indexOf("nix") >= 0 || indexOf("nux") >= 0 || indexOf("aix") > 0 -> { posixHost = true ; HOSTOS.LINUX }
-        else -> throw GradleException("Host OS is not supported in Kotlin/Native: '${System.getProperty("os.name")}'")
+        else -> System.err.println("Host OS is not supported in Kotlin/Native: '${System.getProperty("os.name")}'")
+    }}
+    enum class HOSTARCH { X86, ARM, M1 }
+    val hostArch = with(System.getProperty("os.arch").lowercase()) { when {
+        indexOf("x86") >= 0  -> HOSTARCH.X86
+        indexOf("amd") >= 0  -> HOSTARCH.X86
+        indexOf("arm") >= 0  -> HOSTARCH.ARM
+        indexOf("aarch") >=0 -> HOSTARCH.M1
+        else -> System.err.println("Host CPU Arch unknown: '${System.getProperty("os.arch")}'")
     }}
 
-    fun dump() {
-        val clazz = BuildSrcGlobal::class
-        println("buildSrc/src/main/kotlin/BuildSrcGlobal.kt {")
-        clazz.declaredMemberProperties.sortedBy { it.name }.forEach {
-            val value = it.get(BuildSrcGlobal)
-            var type = ""
-            val q = when(value) {
-                is String -> "\""
-                is Char -> "'"
-                is Int, is Long, is Short, is Float, is Double, is Boolean -> ""
-                else -> { type = "[${it.returnType}]" ; "" }
-            }
-            println(String.format("  %-19s = $q%s$q %s", it.name, value, type))
-        }
-        println("}")
-    }
-
+    // colored console output
+    val ESCAPE = '\u001B'
     enum class ConsoleColor(baseCode: Int) {
         BLACK(30),
         RED(31),
@@ -104,6 +103,24 @@ object BuildSrcGlobal {
             ConsoleColor.DEFAULT -> Color.foreground(s, color)
             else -> Color.foreground(Color.background(s, backgroundColor), color)
         }
+    }
+
+    // dump
+    fun dump() {
+        val clazz = BuildLogicGlobal::class
+        println("buildLogic/src/main/kotlin/BuildLogicGlobal.kt {")
+        clazz.declaredMemberProperties.sortedBy { it.name }.forEach {
+            val value = it.get(BuildLogicGlobal)
+            var type = ""
+            val q = when(value) {
+                is String -> "\""
+                is Char -> "'"
+                is Int, is Long, is Short, is Float, is Double, is Boolean -> ""
+                else -> { type = "[${it.returnType}]" ; "" }
+            }
+            println(String.format("  %-19s = $q%s$q %s", it.name, value, type))
+        }
+        println("}")
     }
 
 }

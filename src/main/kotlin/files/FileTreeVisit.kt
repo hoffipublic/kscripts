@@ -1,15 +1,11 @@
+package files
 
-import kotlinx.datetime.*
 import java.nio.file.FileVisitResult
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.attribute.BasicFileAttributes
 import kotlin.io.path.*
 
-
-fun main(args: Array<String>) {
-    main_FileTreeVisit(args)
-}
 
 @OptIn(ExperimentalPathApi::class)
 fun main_FileTreeVisit(args: Array<String>) {

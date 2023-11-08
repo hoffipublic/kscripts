@@ -12,10 +12,10 @@ import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
 
-fun main(args: Array<String>) {
-//    prettyjson()
-    timeElapsed("2021-12-31T20:50:00+01:00", "2022-02-03T14:01:01+01:00")
-}
+//fun main(args: Array<String>) {
+////    prettyjson()
+//    timeElapsed("2021-12-31T20:50:00+01:00", "2022-02-03T14:01:01+01:00")
+//}
 
 fun timeElapsed(startDateTimeIso: String, endDateTimeIso: String, onlyWithinServiceTimes: Boolean = true, timeZoneIdString: String = "Europe/Berlin", desc: String = ""): Duration {
     val timeZone = TimeZone.of(timeZoneIdString)
