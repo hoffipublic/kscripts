@@ -1,4 +1,5 @@
-@file:EntryPoint("ReplaceInFileKt") // ending in Kt if main is global (not in class companion
+@file:EntryPoint("ReplaceInFileKt")       // ending in <filename>Kt if main is global (not in class companion)
+//@file:EntryPoint("files.ReplaceInFile") // ending in <classname> (without Kt) if main is static in class companion
 @file:DependsOn("io.github.kscripting:kscript-annotations:1.5.0")
 @file:DependsOn("com.squareup.okio:okio:3.6.0")
 @file:DependsOn("com.github.ajalt.clikt:clikt-jvm:4.2.1")
@@ -18,7 +19,7 @@ import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.path
 import java.nio.file.Path
 
-//fun main(args: Array<out String>) = ReplaceInFile().main(args)
+//fun main(args: Array<out String>) = ReplaceInFile().main(args) // Main.kt and clikt subcommands cannot both have a fun main()
 
 class ReplaceInFile : CliktCommand(name = "replaceInFile") {
     //companion object { @JvmStatic fun main(args: Array<out String>) = ReplaceInFile().main(args) }
