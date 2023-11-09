@@ -21,6 +21,7 @@ dependencies {
     implementation("io.github.kscripting:kscript-annotations:1.5.0")
 
     testImplementation(kotlin("test"))
+    testImplementation("com.squareup.okio:okio-fakefilesystem:${libs.versions.okio.get()}")
     testImplementation("io.kotest:kotest-runner-junit5:${libs.versions.kotest.asProvider().get()}")
     testImplementation("io.kotest:kotest-assertions-core:${libs.versions.kotest.asProvider().get()}")
     testImplementation("io.kotest:kotest-framework-datatest-jvm:${libs.versions.kotest.asProvider().get()}")
@@ -33,6 +34,9 @@ tasks.named<JavaExec>("run") {
 
 kotlin {
     jvmToolchain(17)
+    tasks.withType<Test>().configureEach {
+        buildLogicJvmTestConfig()
+    }
 }
 
 val writeProjectDir by tasks.registering {

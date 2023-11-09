@@ -9,11 +9,12 @@
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands
 import files.ReplaceInFile
+import okio.FileSystem
 
-/**
- * see helper bash functions for calling/executing in `README.md`
- */
-fun main(args: Array<String>) = App().subcommands(ReplaceInFile(), Client(), Server()).main(args)
+var FS: FileSystem = FileSystem.SYSTEM
+
+/** see helper bash functions for calling/executing in `README.md` */
+fun main(args: Array<String>) = App().subcommands(ReplaceInFile(FS), Client(), Server()).main(args)
 
 class App() : CliktCommand(allowMultipleSubcommands = true) {
     override fun run() {
