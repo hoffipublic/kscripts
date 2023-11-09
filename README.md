@@ -59,5 +59,5 @@ jpackage --verbose --name kprettyjson \
 and then
 
 ```
-./kprettyjson.app/Contents/MacOS/kprettyjso
+./kprettyjson.app/Contents/MacOS/kprettyjson
 ```

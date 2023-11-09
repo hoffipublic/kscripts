@@ -11,8 +11,7 @@ import com.github.ajalt.clikt.core.subcommands
 import files.ReplaceInFile
 
 /**
- * kt () { kscript "$HOME/gitRepos/kscripts/src/main/kotlin/Main.kt" "$@" 2> >(grep -v '^\[kscript\]') ; }
- * ktraw () { kscript "$HOME/gitRepos/kscripts/src/main/kotlin/Main.kt" "$@" ; }
+ * see helper bash functions for calling/executing in `README.md`
  */
 fun main(args: Array<String>) = App().subcommands(ReplaceInFile(), Client(), Server()).main(args)
 
