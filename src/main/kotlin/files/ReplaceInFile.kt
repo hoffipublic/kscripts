@@ -41,12 +41,13 @@ class ReplaceInFile(val FS: FileSystem) : CliktCommand(name = "replaceInFile") {
     val omitRegionEndLines: Boolean         by option("--omit-region-end-lines", "-oel").flag().help("do not write the line(s) itself found by '--region-end' to the output")
     val replaceRegion: String?              by option("--replace-region").help("replace anything between --region-start and --region-end with this\u0085(mutual exclusive with --replace and --remove-region)")
     val removeRegion: Boolean               by option("--remove-region").flag().help("just remove anything between --region-start and --region-end\u0085(mutual exclusive with --replace and --replace-region)")
+    val verbose: Boolean                    by option("--verbose").flag().help("more verbose output and statistics")
+    val silent: Boolean                     by option("--silent").flag().help("as few output as makes sense")
     val args: Set<String>                   by argument().multiple().unique().help("files to do replacement(s) in")
     var regionStartRE: Regex? = null
     var regionEndRE: Regex? = null
     var rplREs: MutableList<Pair<Regex, String>> = mutableListOf()
     var firstRegionStartFound = false
-    var indexAfterLastRegionEnd = -1
     lateinit var postfix: String
     val warnings: MutableList<String> = mutableListOf()
 
@@ -54,37 +55,45 @@ class ReplaceInFile(val FS: FileSystem) : CliktCommand(name = "replaceInFile") {
     //    override fun equals(other: Any?): Boolean = if ((other is Boolean && isTrue != other) || (other !is BoolState) ) false else isTrue == other.isTrue
     //    override fun hashCode(): Int = isTrue.hashCode()
     //}
-    data class ReplaceResult(
+    class ReplaceResult(
         val origFilePath: Path,
-        val lines: MutableList<String> = mutableListOf(),
+        val outLines: MutableList<String> = mutableListOf(),
         //var foundARegionStartLine: Boolean = false,
-        var currentLineNumber: Int = -42,
-        val regions: MutableList<Pair<Int, Int>> = mutableListOf(),
+        var currentOutLineNumber: Int = -42,
+        var currentOrigLineNumber: Int = -42,
+        val regions: MutableList<Pair<Int, Int>> = mutableListOf(), // 0-indexed start, +1-index end (for usage with slice(x until y))
         val countAlteredLines: Int = 0,
         val countRemovedLines: Int = 0,
         val countAddedLines: Int = 0,
-    )
+    ) {
+        override fun toString() = origFilePath.toString()
+        fun initLineNumbers() { currentOutLineNumber = 0 ; currentOrigLineNumber = 0 }
+        fun incBothLineNumbers() { currentOutLineNumber++ ; currentOrigLineNumber++ }
+        fun incOrigLineNumber() { currentOrigLineNumber++ }
+        //fun incOrigLineNumber() { currentOrigLineNumber++ }
+        fun addOutLine(line: String) { outLines.add(line) }
+    }
 
     override fun run() {
         val fileReplaceResults: List<ReplaceResult> = validateArgs()
 
         for (rr in fileReplaceResults) {
-            indexAfterLastRegionEnd = -1
             FS.source(rr.origFilePath).use { fileSource ->
                 fileSource.buffer().use { bufferedFileSource ->
                     var currentLine: String? = bufferedFileSource.readUtf8Line()
-                    rr.currentLineNumber = 0
+                    rr.initLineNumbers()
                     if (currentLine == null) { warnings.add("${rr.origFilePath} did not have any content !!!") }
                     while (currentLine != null) {
                         if (regionStartRE != null) {
-                            currentLine = readUpToStartMatch(currentLine, bufferedFileSource, rr)
+                            currentLine = readUpToRegionStartMatch(currentLine, bufferedFileSource, rr)
                             // currentLine now is lineAfterRegionStartLine
                             if ( ! firstRegionStartFound && currentLine == null) {
                                 warnings.add("${rr.origFilePath} did not had a line matching --region-start '${regionStartRE!!.pattern}' or it was the last line in that file!!!")
                             }
                         }
                         if ( replaceRegion != null && rr.regions.isNotEmpty()) {
-                            rr.lines.add(replaceRegion!!)
+                            rr.outLines.add(replaceRegion!!)
+                            rr.currentOutLineNumber += replaceRegion!!.split("\n").size
                             currentLine = eatUpToRegionEndOrEndOfFile(currentLine, bufferedFileSource, rr)
                         } else if (removeRegion && rr.regions.isNotEmpty()) {
                             currentLine = eatUpToRegionEndOrEndOfFile(currentLine, bufferedFileSource, rr)
@@ -95,93 +104,135 @@ class ReplaceInFile(val FS: FileSystem) : CliktCommand(name = "replaceInFile") {
                             // ==============================================================
                             //
                         }
+                        if (currentLine == null) {
+                            finalizeRegions(rr)
+                        }
                     }
                 }
             }
-            if (omitAfterLastRegionEnd && indexAfterLastRegionEnd >= 0) {
-                for (i in 0 until (rr.lines.size - indexAfterLastRegionEnd)) {
-                    rr.lines.removeLastOrNull()
+            if (omitAfterLastRegionEnd && rr.regions.isNotEmpty() && rr.regions.last().second >= 0) {
+                for (i in 0 until (rr.outLines.size - rr.regions.last().second)) { // TODO CHECK
+                    rr.outLines.removeLastOrNull()
                 }
             }
         }
 
+        if (verbose) echoInfos(fileReplaceResults)
         echoWarnings()
         writeFiles(fileReplaceResults)
     } //  run()
 
-    private fun readUtf8Line(bufferedFileSource: BufferedSource, rr: ReplaceInFile.ReplaceResult): String? = bufferedFileSource.readUtf8Line().also { rr.currentLineNumber++ }
+    private fun addLineAndReadNextLineNormal(currentMaybeModifiedLine: String, bufferedFileSource: BufferedSource, rr: ReplaceResult): String? =
+        bufferedFileSource.readUtf8Line().also {
+            rr.addOutLine(currentMaybeModifiedLine)
+            rr.incBothLineNumbers()
+        }
+    private fun addLineAndReadNextLineAfterRegionStartMatch(currentMaybeModifiedLine: String, bufferedFileSource: BufferedSource, rr: ReplaceResult): String? {
+        val nextLine = bufferedFileSource.readUtf8Line()
+        if (nextLine == null) { warnings.add("${rr.origFilePath} --region-start match on last line of file") }
+        rr.regions.add(Pair(rr.outLines.size, -1))
+        if (omitRegionStartLines) {
+            rr.incOrigLineNumber()
+        } else {
+            rr.addOutLine(currentMaybeModifiedLine)
+            rr.incBothLineNumbers()
+        }
+        return nextLine
+    }
+    private fun addLineAndReadNextLineAfterRegionEndMatch(currentMaybeModifiedLine: String, bufferedFileSource: BufferedSource, rr: ReplaceResult): String? {
+        if (omitRegionEndLines) {
+            rr.incOrigLineNumber()
+        } else {
+            rr.addOutLine(currentMaybeModifiedLine)
+            rr.incBothLineNumbers()
+        }
+        if (rr.regions.isEmpty() || rr.regions.last().second != -1) {
+            if (regionStartRE == null) {
+                rr.regions.clear()
+                rr.regions.add(Pair(0, rr.outLines.size))
+                eatUpToEndOfFile(bufferedFileSource, rr)
+            } else {
+                warnings.add("${rr.origFilePath} did not had a matching --region-start at line ${rr.currentOutLineNumber}")
+            }
+        } else {
+            val region = rr.regions.removeLast()
+            rr.regions.add(region.copy(second = rr.outLines.size)) // index+1 for later usage of list.slice(start until end)
+        }
+        val nextLine = bufferedFileSource.readUtf8Line()
+        return nextLine
+    }
+    private fun omitLineAndReadNextLine(bufferedFileSource: BufferedSource, rr: ReplaceResult): String? =
+        bufferedFileSource.readUtf8Line().also {
+            rr.incOrigLineNumber()
+        }
 
     private fun doReplacements(line: String?, bufferedFileSource: BufferedSource, rr: ReplaceResult): String? {
         var currentLine: String? = line
         while (currentLine != null) {
             if ( (regionEndRE != null) && (regionEndRE!!.containsMatchIn(currentLine)) ) {
-                if ( ! omitRegionEndLines) rr.lines.add(currentLine)
-                indexAfterLastRegionEnd = rr.lines.size
-                currentLine = readUtf8Line(bufferedFileSource, rr)
-                regionEndWithCurrentLineAfterIt(rr)
+                currentLine = addLineAndReadNextLineAfterRegionEndMatch(currentLine, bufferedFileSource, rr)
                 break
             }
 
             // ==============================================================
-            for ((index, pair) in rplREs.withIndex()) {
-                val modifiedLine = currentLine!!.replace(pair.first, pair.second) // regex replace in THIS line !!!
-                rr.lines.add(modifiedLine) // if regex did not match, line is unchanged
+            var modifiedLine: String = currentLine
+            for (pair in rplREs) {
+                modifiedLine = modifiedLine.replace(pair.first, pair.second) // regex replace in THIS line !!!
                 if ( ! allReplacements && (modifiedLine != currentLine) ) {
                     break // at most ONE given regex should alter the line
-                } else if (allReplacements && (index != (rplREs.size - 1)) ) {
-                    // operate on the (maybe altered) modifiedLine in the next iteration, but keep the result of the last iteration
-                    currentLine = rr.lines.removeLast()
                 }
             }
             // ==============================================================
 
-            currentLine = readUtf8Line(bufferedFileSource, rr)
+            currentLine = addLineAndReadNextLineNormal(modifiedLine, bufferedFileSource, rr)
         }
         return currentLine
     }
 
-    private fun readUpToStartMatch(line: String?, bufferedFileSource: BufferedSource, rr: ReplaceResult): String? {
-        var beforeRegionStartLine = true
+    private fun readUpToRegionStartMatch(line: String?, bufferedFileSource: BufferedSource, rr: ReplaceResult): String? {
         var currentLine: String? = line
         do {
             if (regionStartRE!!.containsMatchIn(currentLine!!)) {
-                beforeRegionStartLine = false
                 firstRegionStartFound = true
-                if ( ! omitRegionStartLines) rr.lines.add(currentLine)
-                currentLine = readUtf8Line(bufferedFileSource, rr)
+                currentLine = addLineAndReadNextLineAfterRegionStartMatch(currentLine, bufferedFileSource, rr)
                 // current line now is lineAfterRegionStartLine
-                rr.regions.add(Pair(rr.currentLineNumber, -1))
-            } else if ( ! omitBeforeFirstRegionStart || firstRegionStartFound) {
-                rr.lines.add(currentLine)
-                currentLine = readUtf8Line(bufferedFileSource, rr)
+                break
+            } else if ( omitBeforeFirstRegionStart && ! firstRegionStartFound) {
+                currentLine = omitLineAndReadNextLine(bufferedFileSource, rr)
+            } else {
+                // after the complete first Region, but outside the other regions
+                currentLine = addLineAndReadNextLineNormal(currentLine, bufferedFileSource, rr)
             }
-        } while (beforeRegionStartLine && currentLine != null)
+        } while (currentLine != null)
         return currentLine // lineAfterRegionStartLine
     }
 
     private fun eatUpToRegionEndOrEndOfFile(line: String?, bufferedFileSource: BufferedSource, rr: ReplaceResult): String? {
-        var beforeRegionEndLine = true
         var currentLine: String? = line
         do {
             if (regionEndRE != null && regionEndRE!!.containsMatchIn(currentLine!!)) {
-                beforeRegionEndLine = false
-                if ( ! omitRegionEndLines) rr.lines.add(currentLine)
-                indexAfterLastRegionEnd = rr.lines.size
-                currentLine = readUtf8Line(bufferedFileSource, rr)
-                regionEndWithCurrentLineAfterIt(rr)
+                currentLine = addLineAndReadNextLineAfterRegionEndMatch(currentLine, bufferedFileSource, rr)
             } else {
-                currentLine = readUtf8Line(bufferedFileSource, rr)
+                currentLine = omitLineAndReadNextLine(bufferedFileSource, rr)
             }
-        } while (beforeRegionEndLine && currentLine != null)
+        } while (currentLine != null)
         return currentLine // lineAfterRegionEndLine
     }
+    private fun eatUpToEndOfFile(bufferedFileSource: BufferedSource, rr: ReplaceResult): String? {
+        var nextLine = bufferedFileSource.readUtf8Line()
+        while ( nextLine != null) {
+            rr.outLines.add(nextLine)
+            rr.incBothLineNumbers()
+            nextLine = bufferedFileSource.readUtf8Line()
+        }
+        finalizeRegions(rr)
+        return null
+    }
 
-    private fun regionEndWithCurrentLineAfterIt(rr: ReplaceResult) {
-        if (rr.regions.isEmpty() || rr.regions.last().second != -1) {
-            warnings.add("${rr.origFilePath} did not had a matching --region-start at line ${rr.currentLineNumber - 1}")
-        } else {
-            val region = rr.regions.removeLast()
-            rr.regions.add(region.copy(second = rr.currentLineNumber))
+    private fun finalizeRegions(rr: ReplaceResult) {
+        if (rr.regions.isNotEmpty() && rr.regions.last().second == -1) {
+            val pair = rr.regions.removeLast()
+            rr.regions.add(pair.copy(second = rr.outLines.size))
         }
     }
 
@@ -190,7 +241,7 @@ class ReplaceInFile(val FS: FileSystem) : CliktCommand(name = "replaceInFile") {
             if (stdout) {
                 echo(rr.origFilePath.toString())
                 echo(rr.origFilePath.toString().replace(".".toRegex(), "=")) // underline
-                for (l in rr.lines) {
+                for (l in rr.outLines) {
                     echo(l)
                 }
             } else {
@@ -204,7 +255,7 @@ class ReplaceInFile(val FS: FileSystem) : CliktCommand(name = "replaceInFile") {
                     (rr.origFilePath.toString() + postfix).toPath()
                 }
                 FS.write(sinkPath) {
-                    for (line in rr.lines) {
+                    for (line in rr.outLines) {
                         writeUtf8(line).writeUtf8("\n")
                     }
                 }
@@ -218,6 +269,20 @@ class ReplaceInFile(val FS: FileSystem) : CliktCommand(name = "replaceInFile") {
         }
         for (warning in warnings) {
             echo("  $warning")
+        }
+    }
+
+    private fun echoInfos(fileReplaceResults: List<ReplaceResult>) {
+        for (rr in fileReplaceResults) {
+            echo("${rr.origFilePath}:")
+            echo("${rr.origFilePath}:".replace(".".toRegex(), "=")) // underline
+            val infolines: MutableList<String> = mutableListOf()
+            if (rr.regions.isEmpty()) infolines.add("  no regions") else { infolines.add("  regions:") ; infolines.add("==========") }
+            for (region in rr.regions) {
+                infolines.add("    ${region.first}..${region.second}")
+                infolines.add(rr.outLines.slice(region.first until region.second).joinToString("\n      |", "      |"))
+            }
+            println(infolines.joinToString("\n"))
         }
     }
 

@@ -11,7 +11,7 @@ import kotlin.time.Duration
 
 data class ElapsedTimeData(val desc: String, val startDateTimeIso: String, val endDateTimeIso: String, val elapsedTime: Duration, val onlyWithinServiceTimes: Boolean)
 
-class MainTest : FunSpec({
+class TimeElapsedSpec : FunSpec({
     context("startDate and endDate") {
         withData(
             nameFn = { it.desc },
