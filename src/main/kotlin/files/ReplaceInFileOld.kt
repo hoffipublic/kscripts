@@ -1,6 +1,6 @@
 // the following kscript annotation directives are only needed, if you want to call this via kscript without using Main.kt
-//@file:EntryPoint("ReplaceInFileKt")       // ending in <filename>Kt if main is global (not in class companion)
-////@file:EntryPoint("files.ReplaceInFile") // ending in <classname> (without Kt) if main is static in class companion
+//@file:EntryPoint("ReplaceInFileOldKt")       // ending in <filename>Kt if main is global (not in class companion)
+////@file:EntryPoint("files.ReplaceInFileOld") // ending in <classname> (without Kt) if main is static in class companion
 //@file:DependsOn("io.github.kscripting:kscript-annotations:1.5.0")
 //@file:DependsOn("com.squareup.okio:okio:3.6.0")
 //@file:DependsOn("com.github.ajalt.clikt:clikt-jvm:4.2.1")
@@ -21,10 +21,10 @@ import kotlin.io.use
 import kotlin.system.exitProcess
 
 // this main() only needed, if you want to call this via kscript without using Main.kt
-//fun main(args: Array<out String>) = ReplaceInFile().main(args) // Main.kt and clikt subcommands cannot both have a fun main()
+//fun main(args: Array<out String>) = ReplaceInFileOld().main(args) // Main.kt and clikt subcommands cannot both have a fun main()
 
-class ReplaceInFile(val FS: FileSystem) : CliktCommand(name = "replaceInFile") {
-    //companion object { @JvmStatic fun main(args: Array<out String>) = ReplaceInFile().main(args) }
+class ReplaceInFileOld(val FS: FileSystem) : CliktCommand(name = "replaceInFile") {
+    //companion object { @JvmStatic fun main(args: Array<out String>) = ReplaceInFileOld().main(args) }
     val rplOpts: List<Pair<String, String>> by option("--replace", "-rpl").pair().multiple().help("pairs of regex and replacement strings.\u0085Only first regex that matches will be replaced (unless you explicitly specify --all)\u0085Replacement may have back references to regex groups via \$1, \$2, ...\u0085Mutual exclusive to either of --replace-region and --remove-region")
     val allReplacements: Boolean            by option("--all", "-a").flag().help("if multiple --replace pairs are give execute them all\u0085(otherwise only the first matching --replace will be executed)")
     val postfixOpt: String                  by option("--postfix", "-p").default("").help("postfix for output file(s)\u0085default: '.replaced'\u0085(mutual exclusive with --inline/--overwrite)")
@@ -68,8 +68,9 @@ class ReplaceInFile(val FS: FileSystem) : CliktCommand(name = "replaceInFile") {
     ) {
         override fun toString() = origFilePath.toString()
         fun initLineNumbers() { currentOutLineNumber = 0 ; currentOrigLineNumber = 0 }
-        fun incBothLineNumbers() { currentOutLineNumber++ ; currentOrigLineNumber++ }
-        fun incOrigLineNumber() { currentOrigLineNumber++ }
+        fun incBothLineNumbers(inc: Int = 1) { currentOutLineNumber + inc ; currentOrigLineNumber + inc }
+        fun incOrigLineNumber(inc: Int = 1) { currentOrigLineNumber + inc }
+        fun incOutLineNmber(inc: Int = 1) { currentOutLineNumber + inc }
         //fun incOrigLineNumber() { currentOrigLineNumber++ }
         fun addOutLine(line: String) { outLines.add(line) }
     }
@@ -93,7 +94,7 @@ class ReplaceInFile(val FS: FileSystem) : CliktCommand(name = "replaceInFile") {
                         }
                         if ( replaceRegion != null && rr.regions.isNotEmpty()) {
                             rr.outLines.add(replaceRegion!!)
-                            rr.currentOutLineNumber += replaceRegion!!.split("\n").size
+                            rr.incOutLineNmber(replaceRegion!!.split("\n").size)
                             currentLine = eatUpToRegionEndOrEndOfFile(currentLine, bufferedFileSource, rr)
                         } else if (removeRegion && rr.regions.isNotEmpty()) {
                             currentLine = eatUpToRegionEndOrEndOfFile(currentLine, bufferedFileSource, rr)
@@ -212,6 +213,7 @@ class ReplaceInFile(val FS: FileSystem) : CliktCommand(name = "replaceInFile") {
         do {
             if (regionEndRE != null && regionEndRE!!.containsMatchIn(currentLine!!)) {
                 currentLine = addLineAndReadNextLineAfterRegionEndMatch(currentLine, bufferedFileSource, rr)
+                break
             } else {
                 currentLine = omitLineAndReadNextLine(bufferedFileSource, rr)
             }

@@ -174,7 +174,7 @@ class MainTestBDD : BehaviorSpec({
 
 //class AppBDDTest : BehaviorSpec({
 //    given("the app and numbers 1 to 10") {
-//        val app = App()
+//        val app = MainApp()
 //        val numbers = (1..10).toList()
 //
 //        When("numbers are filtered") {

@@ -1,10 +1,9 @@
 package files
 
+import com.github.ajalt.clikt.testing.CliktCommandTestResult
 import com.github.ajalt.clikt.testing.test
 import io.kotest.core.spec.style.BehaviorSpec
 import io.kotest.matchers.booleans.shouldBeTrue
-import io.kotest.matchers.booleans.shouldNotBeTrue
-import io.kotest.matchers.collections.shouldBeIn
 import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.shouldBe
 import okio.Buffer
@@ -12,7 +11,10 @@ import okio.Path.Companion.toPath
 import okio.buffer
 import okio.fakefilesystem.FakeFileSystem
 
-class ReplaceInFileSpec : BehaviorSpec({
+class ReplaceInFilesSpec : BehaviorSpec({
+    fun printCmdConsoleOut(result: CliktCommandTestResult) {
+        println("START console out===:\n${result.output}\n===END console out")
+    }
     var FFS = FakeFileSystem()
     val FFSHOME = "/Users/testuser".toPath()
     val tPath = FFSHOME / "testing"
@@ -60,7 +62,7 @@ class ReplaceInFileSpec : BehaviorSpec({
     Given("originalFile") {
         When("noninline replacing with regions and regexes incl sentinels") {
             // kt replaceInFile --ignore--nonexisting --backup --region-start '^# START REPLACE' --region-end '^# END REPLACE' --all --replace '\d' "X" --replace 'ri' "ir" --replace 'ir' 'xx' --replace '^(\w+) ([A-Z]+)(.*)$' 'CHANGED $2' ~/tmp/original.txt ~/tmp/nonex.txt
-            val cmd = ReplaceInFile(FFS)
+            val cmd = ReplaceInFiles(FFS)
             val modifiedFileToCheck = ((tPath / original).toString() + replacedPostfix).toPath()
             val result = cmd.test(listOf(
                 """--ignore--nonexisting""",
@@ -88,7 +90,7 @@ class ReplaceInFileSpec : BehaviorSpec({
                         bufferedFileSource.readAll(outBuffer)
                     }
                 }
-                println("console out===:\n${result.output}\n===")
+                printCmdConsoleOut(result)
                 result.statusCode shouldBe 0
                 val expected = """
                     |
@@ -123,7 +125,7 @@ class ReplaceInFileSpec : BehaviorSpec({
         }
         When("noninline replacing with regions and regexes omit sentinels") {
             // kt replaceInFile --ignore--nonexisting --backup --region-start '^# START REPLACE' --region-end '^# END REPLACE' --all --replace '\d' "X" --replace 'ri' "ir" --replace 'ir' 'xx' --replace '^(\w+) ([A-Z]+)(.*)$' 'CHANGED $2' ~/tmp/original.txt ~/tmp/nonex.txt
-            val cmd = ReplaceInFile(FFS)
+            val cmd = ReplaceInFiles(FFS)
             val modifiedFileToCheck = ((tPath / original).toString() + replacedPostfix).toPath()
             val result = cmd.test(listOf(
                 """--ignore--nonexisting""",
@@ -153,7 +155,7 @@ class ReplaceInFileSpec : BehaviorSpec({
                         bufferedFileSource.readAll(outBuffer)
                     }
                 }
-                println("console out===:\n${result.output}\n===")
+                printCmdConsoleOut(result)
                 result.statusCode shouldBe 0
                 val expected = """
                     |
@@ -184,7 +186,7 @@ class ReplaceInFileSpec : BehaviorSpec({
         }
         When("noninline omit-before-first-and-after-last-region replacing with regions and regexes incl sentinels") {
             // kt replaceInFile --ignore--nonexisting --backup --region-start '^# START REPLACE' --region-end '^# END REPLACE' --all --replace '\d' "X" --replace 'ri' "ir" --replace 'ir' 'xx' --replace '^(\w+) ([A-Z]+)(.*)$' 'CHANGED $2' ~/tmp/original.txt ~/tmp/nonex.txt
-            val cmd = ReplaceInFile(FFS)
+            val cmd = ReplaceInFiles(FFS)
             val modifiedFileToCheck = ((tPath / original).toString() + replacedPostfix).toPath()
             val result = cmd.test(listOf(
                 """--ignore--nonexisting""",
@@ -214,7 +216,7 @@ class ReplaceInFileSpec : BehaviorSpec({
                         bufferedFileSource.readAll(outBuffer)
                     }
                 }
-                println("console out===:\n${result.output}\n===")
+                printCmdConsoleOut(result)
                 result.statusCode shouldBe 0
                 val expected = """
                     |# START REPLACE 1
@@ -242,7 +244,7 @@ class ReplaceInFileSpec : BehaviorSpec({
         }
         When("noninline omit-before-first-and-after-last-region replacing with regions and regexes omit sentinels") {
             // kt replaceInFile --ignore--nonexisting --backup --region-start '^# START REPLACE' --region-end '^# END REPLACE' --all --replace '\d' "X" --replace 'ri' "ir" --replace 'ir' 'xx' --replace '^(\w+) ([A-Z]+)(.*)$' 'CHANGED $2' ~/tmp/original.txt ~/tmp/nonex.txt
-            val cmd = ReplaceInFile(FFS)
+            val cmd = ReplaceInFiles(FFS)
             val modifiedFileToCheck = ((tPath / original).toString() + replacedPostfix).toPath()
             val result = cmd.test(listOf(
                 """--ignore--nonexisting""",
@@ -274,7 +276,7 @@ class ReplaceInFileSpec : BehaviorSpec({
                         bufferedFileSource.readAll(outBuffer)
                     }
                 }
-                println("console out===:\n${result.output}\n===")
+                printCmdConsoleOut(result)
                 result.statusCode shouldBe 0
                 val expected = """
                     |CHANGED X
@@ -298,7 +300,7 @@ class ReplaceInFileSpec : BehaviorSpec({
         }
         When("noninline replacing with regions and regexes only start sentinels") {
             // kt replaceInFile --ignore--nonexisting --backup --region-start '^# START REPLACE' --region-end '^# END REPLACE' --all --replace '\d' "X" --replace 'ri' "ir" --replace 'ir' 'xx' --replace '^(\w+) ([A-Z]+)(.*)$' 'CHANGED $2' ~/tmp/original.txt ~/tmp/nonex.txt
-            val cmd = ReplaceInFile(FFS)
+            val cmd = ReplaceInFiles(FFS)
             val modifiedFileToCheck = ((tPath / original).toString() + replacedPostfix).toPath()
             val result = cmd.test(listOf(
                 """--ignore--nonexisting""",
@@ -325,7 +327,7 @@ class ReplaceInFileSpec : BehaviorSpec({
                         bufferedFileSource.readAll(outBuffer)
                     }
                 }
-                println("console out===:\n${result.output}\n===")
+                printCmdConsoleOut(result)
                 result.statusCode shouldBe 0
                 val expected = """
                     |
@@ -360,7 +362,7 @@ class ReplaceInFileSpec : BehaviorSpec({
         }
         When("noninline replacing with regions and regexes only end sentinels") {
             // kt replaceInFile --ignore--nonexisting --backup --region-start '^# START REPLACE' --region-end '^# END REPLACE' --all --replace '\d' "X" --replace 'ri' "ir" --replace 'ir' 'xx' --replace '^(\w+) ([A-Z]+)(.*)$' 'CHANGED $2' ~/tmp/original.txt ~/tmp/nonex.txt
-            val cmd = ReplaceInFile(FFS)
+            val cmd = ReplaceInFiles(FFS)
             val modifiedFileToCheck = ((tPath / original).toString() + replacedPostfix).toPath()
             val result = cmd.test(listOf(
                 """--ignore--nonexisting""",
@@ -387,7 +389,7 @@ class ReplaceInFileSpec : BehaviorSpec({
                         bufferedFileSource.readAll(outBuffer)
                     }
                 }
-                println("console out===:\n${result.output}\n===")
+                printCmdConsoleOut(result)
                 result.statusCode shouldBe 0
                 val expected = """
                     |
@@ -407,6 +409,167 @@ class ReplaceInFileSpec : BehaviorSpec({
                     |orig 9
                     |orig 8
                     |orig 7
+                    |# END REPLACE 2
+                    |second to last with ir in it
+                    |orig 8
+                    |last line
+                    |
+                """.trimMargin()
+
+                val modified: String = outBuffer.readUtf8()
+                //println("content===:\n$content\n===")
+                //println("modifid===:\n$modified\n===")
+                modified shouldBeEqual expected
+            }
+        }
+
+        When("noninline replace-region with both sentinels") {
+            // kt replaceInFile --ignore--nonexisting --backup --region-start '^# START REPLACE' --region-end '^# END REPLACE' --all --replace '\d' "X" --replace 'ri' "ir" --replace 'ir' 'xx' --replace '^(\w+) ([A-Z]+)(.*)$' 'CHANGED $2' ~/tmp/original.txt ~/tmp/nonex.txt
+            val cmd = ReplaceInFiles(FFS)
+            val modifiedFileToCheck = ((tPath / original).toString() + replacedPostfix).toPath()
+            val result = cmd.test(listOf(
+                """--ignore--nonexisting""",
+                """--backup""",
+                """--region-start""", """^# START REPLACE""",
+                """--region-end""", """^# END REPLACE""",
+                """--all""",
+                """--replace-region""","something\nsecond line\nthird line",
+                """--verbose""",
+                (tPath / original).toString(),
+                """~/tmp/nonex.txt""",
+            ))
+
+            Then("noninline replace-region with both sentinels") {
+                FFS.checkNoOpenFiles()
+                FFS.exists(tPath / "$originalBase$postfix.replaced").shouldBeTrue()
+                FFS.exists(tPath / "$originalBase$postfix.backup").shouldBeTrue()
+                FFS.exists(tPath / "$originalBase$postfix").shouldBeTrue()
+                val outBuffer = Buffer()
+                FFS.source(modifiedFileToCheck).use { fileSource ->
+                    fileSource.buffer().use { bufferedFileSource ->
+                        bufferedFileSource.readAll(outBuffer)
+                    }
+                }
+                printCmdConsoleOut(result)
+                result.statusCode shouldBe 0
+                val expected = """
+                    |
+                    |second line
+                    |orig 0
+                    |third line
+                    |# START REPLACE 1
+                    |something
+                    |second line
+                    |third line
+                    |# END REPLACE 1
+                    |one after
+                    |orig 8
+                    |orig 99 and 9
+                    |three after with ir in it
+                    |# START REPLACE 2
+                    |something
+                    |second line
+                    |third line
+                    |# END REPLACE 2
+                    |second to last with ir in it
+                    |orig 8
+                    |last line
+                    |
+                """.trimMargin()
+
+                val modified: String = outBuffer.readUtf8()
+                //println("content===:\n$content\n===")
+                //println("modifid===:\n$modified\n===")
+                modified shouldBeEqual expected
+            }
+        }
+        When("noninline replace-region with only region-start sentinel") {
+            // kt replaceInFile --ignore--nonexisting --backup --region-start '^# START REPLACE' --region-end '^# END REPLACE' --all --replace '\d' "X" --replace 'ri' "ir" --replace 'ir' 'xx' --replace '^(\w+) ([A-Z]+)(.*)$' 'CHANGED $2' ~/tmp/original.txt ~/tmp/nonex.txt
+            val cmd = ReplaceInFiles(FFS)
+            val modifiedFileToCheck = ((tPath / original).toString() + replacedPostfix).toPath()
+            val result = cmd.test(listOf(
+                """--ignore--nonexisting""",
+                """--backup""",
+                """--region-start""", """^# START REPLACE""",
+                """--all""",
+                """--replace-region""","something\nsecond line\nthird line",
+                """--verbose""",
+                (tPath / original).toString(),
+                """~/tmp/nonex.txt""",
+            ))
+
+            Then("noninline replace-region with regionsstart sentinels") {
+                FFS.checkNoOpenFiles()
+                FFS.exists(tPath / "$originalBase$postfix.replaced").shouldBeTrue()
+                FFS.exists(tPath / "$originalBase$postfix.backup").shouldBeTrue()
+                FFS.exists(tPath / "$originalBase$postfix").shouldBeTrue()
+                val outBuffer = Buffer()
+                FFS.source(modifiedFileToCheck).use { fileSource ->
+                    fileSource.buffer().use { bufferedFileSource ->
+                        bufferedFileSource.readAll(outBuffer)
+                    }
+                }
+                printCmdConsoleOut(result)
+                result.statusCode shouldBe 0
+                val expected = """
+                    |
+                    |second line
+                    |orig 0
+                    |third line
+                    |# START REPLACE 1
+                    |something
+                    |second line
+                    |third line
+                    |# END REPLACE 1
+                """.trimMargin()
+
+                val modified: String = outBuffer.readUtf8()
+                //println("content===:\n$content\n===")
+                //println("modifid===:\n$modified\n===")
+                modified shouldBeEqual expected
+            }
+        }
+        When("noninline replace-region with only region-end sentinel") {
+            // kt replaceInFile --ignore--nonexisting --backup --region-start '^# START REPLACE' --region-end '^# END REPLACE' --all --replace '\d' "X" --replace 'ri' "ir" --replace 'ir' 'xx' --replace '^(\w+) ([A-Z]+)(.*)$' 'CHANGED $2' ~/tmp/original.txt ~/tmp/nonex.txt
+            val cmd = ReplaceInFiles(FFS)
+            val modifiedFileToCheck = ((tPath / original).toString() + replacedPostfix).toPath()
+            val result = cmd.test(listOf(
+                """--ignore--nonexisting""",
+                """--backup""",
+                """--region-end""", """^# END REPLACE""",
+                """--all""",
+                """--replace-region""","something\nsecond line\nthird line",
+                """--verbose""",
+                (tPath / original).toString(),
+                """~/tmp/nonex.txt""",
+            ))
+
+            Then("noninline replace-region with regionsstart sentinels") {
+                FFS.checkNoOpenFiles()
+                FFS.exists(tPath / "$originalBase$postfix.replaced").shouldBeTrue()
+                FFS.exists(tPath / "$originalBase$postfix.backup").shouldBeTrue()
+                FFS.exists(tPath / "$originalBase$postfix").shouldBeTrue()
+                val outBuffer = Buffer()
+                FFS.source(modifiedFileToCheck).use { fileSource ->
+                    fileSource.buffer().use { bufferedFileSource ->
+                        bufferedFileSource.readAll(outBuffer)
+                    }
+                }
+                printCmdConsoleOut(result)
+                result.statusCode shouldBe 0
+                val expected = """
+                    |something
+                    |second line
+                    |third line
+                    |# END REPLACE 1
+                    |one after
+                    |orig 8
+                    |orig 99 and 9
+                    |three after with ir in it
+                    |# START REPLACE 2
+                    |something
+                    |second line
+                    |third line
                     |# END REPLACE 2
                     |second to last with ir in it
                     |orig 8

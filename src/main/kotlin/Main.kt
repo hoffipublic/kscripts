@@ -3,22 +3,24 @@
 @file:DependsOn("com.squareup.okio:okio:3.6.0")
 @file:DependsOn("com.github.ajalt.clikt:clikt-jvm:4.2.1")
 
-@file:Import("files/ReplaceInFile.kt")
+@file:Import("files/ReplaceInFiles.kt")
+@file:Import("files/MultiOptGroups.kt")
 
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands
-import files.ReplaceInFile
+import files.MultiOptGroups
+import files.ReplaceInFiles
 import okio.FileSystem
 
 var FS: FileSystem = FileSystem.SYSTEM
 
 /** see helper bash functions for calling/executing in `README.md` */
-fun main(args: Array<String>) = App().subcommands(ReplaceInFile(FS), Client(), Server()).main(args)
+fun main(args: Array<String>) = MainApp().subcommands(ReplaceInFiles(FS), Client(), Server(), MultiOptGroups()).main(args)
 
-class App() : CliktCommand(allowMultipleSubcommands = true) {
+class MainApp() : CliktCommand(allowMultipleSubcommands = true) {
     override fun run() {
-        echo("Hello, from App!")
+        echo("Hello, from MainApp!")
     }
 }
 
@@ -28,6 +30,7 @@ class Client : CliktCommand() {
         echo("cmd: client")
         echo()
     }
+
 }
 
 class Server : CliktCommand() {
