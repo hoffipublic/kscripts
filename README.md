@@ -9,11 +9,22 @@ used libraries also include:
 
 ## known limitations
 
-clikt Main and subcommands cannot both have a `fun main(...)`
+for repeatable opt groups, the corresponding subcommand has to come BEFORE the actual subcommand that does the action.
+
+e.g.: see `tutorial_DoWithUsers.kt`   `user --login hoffi user --login admin` have to come BEFORE `doWithUsers`!
+
+## implement your own MainApp Subcommands
+
+Any ctx objects shared between subcommands should go into root's context obj
+
+and root's context obj should be a `MutableSet<AContextValue>`
+
+see `helpers_ScriptHelpers.kt`
 
 ## bash helper functions
 
 ```bash
+# copy paste awk ---->>  2> >(awk '{gsub("\\\[nl\\\]","\n")};1')
 export KTSCRIPTSBASE="$HOME/gitRepos/kscripts/src/main/kotlin"
 function kt() {
   echo "kscript \$KTSCRIPTSBASE/Main.kt $* 2> >(grep -v '^\[kscript\]') # only redirect stderr to grep" >&2
@@ -61,3 +72,16 @@ and then
 ```
 ./kprettyjson.app/Contents/MacOS/kprettyjson
 ```
+
+## ***BEWARE!!!***
+
+kscript's `@file:Import("from/any/subdir/Scriptname.kt")` just includes the utf-8 content of that file at ***that*** place.
+
+INCLUDING any package that might be in it.
+
+So you might end up having multiple package declarations in the resulting script that kscript tries to compile.
+
+
+<big>***THEREFORE IT IS MORE OR LESS RECOMMENDED NOT(!!!) TO USE package's within decomposed parts of your script***</big>
+
+see [kscript issue 334](https://github.com/kscripting/kscript/issues/334)

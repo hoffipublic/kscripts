@@ -1,11 +1,9 @@
 // the following kscript annotation directives are only needed, if you want to call this via kscript without using Main.kt
 //@file:EntryPoint("ReplaceInFileOldKt")       // ending in <filename>Kt if main is global (not in class companion)
-////@file:EntryPoint("files.ReplaceInFileOld") // ending in <classname> (without Kt) if main is static in class companion
+////@file:EntryPoint("ReplaceInFileOld") // ending in <classname> (without Kt) if main is static in class companion
 //@file:DependsOn("io.github.kscripting:kscript-annotations:1.5.0")
 //@file:DependsOn("com.squareup.okio:okio:3.6.0")
 //@file:DependsOn("com.github.ajalt.clikt:clikt-jvm:4.2.1")
-
-package files
 
 //import DependsOn
 //import EntryPoint
@@ -32,7 +30,7 @@ class ReplaceInFileOld(val FS: FileSystem) : CliktCommand(name = "replaceInFile"
     val stdout: Boolean                     by option("--stdout").flag().help("do not write any files, but print resulting files to stdout (also ignores --backup)")
     val backup: Boolean                     by option("--backup").flag().help("keep a backup copy of the original file(s) with postfix '.backup'")
     val caseInsensitive: Boolean            by option("--case-insensitive", "-i").flag().help("case-insensitive regex matching")
-    val ignoreNonexisting: Boolean          by option("--ignore--nonexisting").flag().help("ignore files that do not exist")
+    val ignoreNonexisting: Boolean          by option("--ignore-nonexisting").flag().help("ignore files that do not exist")
     val regionStartOpt: String              by option("--region-start", "-s").default("").help("leave all lines untouched from start of file (and after --region-end)\u0085up to line matching this RE (unless --omit-before-first-region)")
     val regionEndOpt: String                by option("--region-end", "-e").default("").help("leave all lines untouched from line matching this RE\u0085up to the end of the file (or next --region-start) (unless --omit-after-last-region)")
     val omitBeforeFirstRegionStart: Boolean by option("--omit-before-first-region", "-os").flag().help("do not write the lines from start of file up to the first '--region-start' to the output file")

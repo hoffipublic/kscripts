@@ -2,14 +2,13 @@
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.testing.CliktCommandTestResult
 import io.kotest.core.spec.style.BehaviorSpec
-import files.MultiOptGroups
 
 class MainSpec : BehaviorSpec({
     fun printCmdConsoleOut(result: CliktCommandTestResult) {
         println("START console out===:\n${result.output}\n===END console out")
     }
-    Given("running MainApp sub MultiOptGroups") {
-        When("running MainApp sub MultiOptGroups") {
+    Given("running MainApp sub UserOptGroup") {
+        When("running MainApp sub UserOptGroup") {
             val theCliktArgs = listOf(
                 """multigroup""",
 
@@ -23,7 +22,7 @@ class MainSpec : BehaviorSpec({
 
                 "~/tmp/original.txt", "~/tmp/nonex.txt"
             )
-            MainApp().subcommands(MultiOptGroups()).parse(theCliktArgs)
+            MainApp().subcommands(UserOptGroup()).parse(theCliktArgs)
 
             Then("I can gather the clikt opt sugroups of options for each") {
                 //printCmdConsoleOut(result)
