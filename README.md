@@ -23,30 +23,61 @@ see `helpers_ScriptHelpers.kt`
 
 ## bash helper functions
 
+define an environment variable where to find all your kscripts:
 ```bash
-# copy paste awk ---->>  2> >(awk '{gsub("\\\[nl\\\]","\n")};1')
 export KTSCRIPTSBASE="$HOME/gitRepos/kscripts/src/main/kotlin"
+```
+
+For calling a script inside src/main/kotlin/... via `Main.kt` use one of these:<br>
+(just call `kt` to see available configured subcommands.)
+```bash
+# default suppress all error messages to just get STDOUT
 function kt() {
-  echo "kscript \$KTSCRIPTSBASE/Main.kt $* 2> >(grep -v '^\[kscript\]') # only redirect stderr to grep" >&2
+  if [[ -z "$KTSCRIPTSBASE" ]]; then echo "\$KTSCRIPTSBASE not set. Set with e.g.: export KTSCRIPTSBASE=\"\$HOME/gitRepos/kscripts/src/main/kotlin\"" >&2 ; fi
+  if [[ ! -s "$KTSCRIPTSBASE/Main.kt" ]]; then echo "did not find '\$KTSCRIPTSBASE/Main.kt'" ; return 1 ; fi
+  echo "kscript \$KTSCRIPTSBASE/Main.kt "$*" 2> >(grep -v '^\[kscript\]') # only redirect stderr to grep" >&2
   kscript "$KTSCRIPTSBASE/Main.kt" "$@" 2> >(grep -v '^\[kscript\]') # only redirect stderr to grep
 }
+# echo all output of kscript
 function ktraw() {
-  echo "kscript \$KTSCRIPTSBASE/Main.kt $* 2> >(awk '{gsub(\"\\\\\\[nl\\\\\\]\",\"\\n\")};1') # only redirect stderr" >&2
+  if [[ -z "$KTSCRIPTSBASE" ]]; then echo "\$KTSCRIPTSBASE not set. Set with e.g.: export KTSCRIPTSBASE=\"\$HOME/gitRepos/kscripts/src/main/kotlin\"" >&2 ; fi
+  if [[ ! -s "$KTSCRIPTSBASE/Main.kt" ]]; then echo "did not find '\$KTSCRIPTSBASE/Main.kt'" ; return 1 ; fi
+  echo "kscript \$KTSCRIPTSBASE/Main.kt "$*" 2> >(awk '{gsub(\"\\\\\\[nl\\\\\\]\",\"\\n\")};1') # only redirect stderr" >&2
   kscript "$KTSCRIPTSBASE/Main.kt" "$@" 2> >(awk '{gsub("\\\[nl\\\]","\n")};1') # only redirect stderr to awk
 }
+```
+
+For calling a specific script directly without going via Main.kt use:
+```bash
 function ktscript() {
   if [[ -z "$KTSCRIPTSBASE" ]]; then echo "\$KTSCRIPTSBASE not set. Set with e.g.: export KTSCRIPTSBASE=\"\$HOME/gitRepos/kscripts/src/main/kotlin\"" >&2 ; fi
-  if [[ ! -s "$KTSCRIPTSBASE/$1" ]]; then echo "'$KTSCRIPTSBASE/$1' script does not exist/zero" >&2 ; return 1 ; fi
+  if [[ ! -s "$KTSCRIPTSBASE/$1" ]]; then echo "did not find '\$KTSCRIPTSBASE/$1' script does not exist/zero" >&2 ; return 1 ; fi
   local ktscr="$1" ; shift
   echo "kscript \$KTSCRIPTSBASE/$ktscr $* 2> >(grep -v '^\[kscript\]') # only redirect stderr to grep" >&2
   kscript "$KTSCRIPTSBASE/$ktscr" "$@" 2> >(grep -v '^\[kscript\]') # only redirect stderr to grep
 }
+# echo all output of kscript
 function ktscriptraw() {
   if [[ -z "$KTSCRIPTSBASE" ]]; then echo "\$KTSCRIPTSBASE not set. Set with e.g.: export KTSCRIPTSBASE=\"\$HOME/gitRepos/kscripts/src/main/kotlin\"" >&2 ; fi
-  if [[ ! -s "$KTSCRIPTSBASE/$1" ]]; then echo "'$KTSCRIPTSBASE/$1' script does not exist/zero" >&2 ; return 1 ; fi
+  if [[ ! -s "$KTSCRIPTSBASE/$1" ]]; then echo "did not find '\$KTSCRIPTSBASE/$1' script does not exist/zero" >&2 ; return 1 ; fi
   local ktscr="$1" ; shift
   echo "kscript \$KTSCRIPTSBASE/$ktscr $* 2> >(awk '{gsub(\"\\\\\\[nl\\\\\\]\",\"\\n\")};1') # only redirect stderr" >&2
   kscript "$KTSCRIPTSBASE/$ktscr" "$@" 2> >(awk '{gsub("\\\[nl\\\]","\n")};1') # only redirect stderr to awk
+}
+```
+
+create bash completions for above functions:
+```bash
+## create bash completions for kt and ktraw
+function ktcompletions() {
+  if [[ -z "$KTSCRIPTSBASE" ]]; then echo "\$KTSCRIPTSBASE not set. Set with e.g.: export KTSCRIPTSBASE=\"\$HOME/gitRepos/kscripts/src/main/kotlin\"" >&2 ; fi
+  if [[ ! -s "$KTSCRIPTSBASE/Main.kt" ]]; then echo "did not find '\$KTSCRIPTSBASE/Main.kt'" ; return 1 ; fi
+    local subcommands=$(kt "completions")
+    complete -W "${subcommands[*]}" "kt"
+    complete -W "${subcommands[*]}" "ktraw"
+    subcommands=$(kt "completions" "scriptfiles")
+    complete -W "${subcommands[*]}" "ktscript"
+    complete -W "${subcommands[*]}" "ktscriptraw"
 }
 ```
 

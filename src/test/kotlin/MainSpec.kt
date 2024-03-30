@@ -1,7 +1,9 @@
 
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.testing.CliktCommandTestResult
+import com.github.ajalt.clikt.testing.test
 import io.kotest.core.spec.style.BehaviorSpec
+import io.kotest.matchers.shouldBe
 
 class MainSpec : BehaviorSpec({
     fun printCmdConsoleOut(result: CliktCommandTestResult) {
@@ -10,23 +12,27 @@ class MainSpec : BehaviorSpec({
     Given("running MainApp sub UserOptGroup") {
         When("running MainApp sub UserOptGroup") {
             val theCliktArgs = listOf(
-                """multigroup""",
+                "user",
+                "--login", "hoffi",
+                "--name", "Dirk",
+                "--age", "52",
 
-                """--region=1-start='^# START REPLACE Region 1'""",
-                """--region=1-end='^# END REPLACE Region 1'""",
-                """--region=1-replace='\d'__with__"X"""",   """--region=1-replace='ri'__with__'ir'""",
+                "user",
+                "--login", "superuser",
+                "--name", "jesus",
 
-                """--region=2-start='^# START REPLACE Region 2'""",
-                """--region=2-end='^# END REPLACE Region 2'""",
-                """--region=2-replace='^(\w+) ([A-Z]+)(.*)$'__with__'CHANGED $2'""",   """--region=2-replace='regex'__with__'replaced compol'""",
-
-                "~/tmp/original.txt", "~/tmp/nonex.txt"
+                "user",
+                "--login", "unnamed"
             )
-            MainApp().subcommands(UserOptGroup()).parse(theCliktArgs)
+            val mainClicktCmd = MainApp().subcommands(UserOptGroup())
+            val result: CliktCommandTestResult = mainClicktCmd.test(theCliktArgs) // execute
 
             Then("I can gather the clikt opt sugroups of options for each") {
-                //printCmdConsoleOut(result)
-                //result.statusCode shouldBe 0
+                printCmdConsoleOut(result)
+                val users: AContextValue.Users = mainClicktCmd.getOrSetInRootContextObj(AContextValue.Users())
+                val userOptGroups: MutableMap<String, UserOptGroup> = users.userOptGroups
+                userOptGroups.size shouldBe 3
+                result.statusCode shouldBe 0
             }
         }
     }

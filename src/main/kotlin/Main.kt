@@ -4,6 +4,7 @@
 @file:DependsOn("com.github.ajalt.clikt:clikt-jvm:4.2.1")
 
 // "faked" package structure via '_' as file:Import replaces the line with the content of that file (including any package declaration it might have)
+@file:Import("ktscriptinternals/completions.kt")
 @file:Import("helpers_ScriptHelpers.kt")
 @file:Import("multiopt_Ctx.kt")
 @file:Import("files_ReplaceInFiles.kt")
@@ -13,14 +14,12 @@
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands
-import com.github.ajalt.clikt.parameters.arguments.argument
-import com.github.ajalt.clikt.parameters.arguments.help
-import com.github.ajalt.clikt.parameters.arguments.multiple
-import com.github.ajalt.clikt.parameters.arguments.unique
-import okio.FileSystem
+import ktscriptinternals.completions
+import okio.Path.Companion.toPath
+import kotlin.system.exitProcess
 
 /** see helper bash functions for calling/executing in `README.md` */
-fun main(argv: Array<out String>) = MainApp().subcommands(ReplaceInFiles(), Client(), Server(), UserOptGroup(), DoWithUsers(), PipedInput()).main(argv)
+fun main(argv: Array<out String>) = MainApp(argv).subcommands(completions(), ReplaceInFiles(), Client(), Server(), UserOptGroup(), DoWithUsers(), PipedInput()).main(argv)
 
 /**
  * MainApp is a convenience to have a single entry point to all of the kscripts in this project
@@ -29,11 +28,19 @@ fun main(argv: Array<out String>) = MainApp().subcommands(ReplaceInFiles(), Clie
  * any subcommand should store context in the top-level root context as a list of sealed classes defined in helpers_ScriptHelpers.kt
  * For calling MainApp (or its subcommands as standalone) with kscript see [github hoffipublic/kscripts](https://github.com/hoffipublic/kscripts)
  */
-class MainApp() : CliktCommand(allowMultipleSubcommands = true) {
+class MainApp(val argv: Array<out String> = emptyArray()) : CliktCommand(allowMultipleSubcommands = true) {
 
     override fun run() {
-        echo("Hello, from MainApp!")
-        //getOrSetInRootContextObj()
+        // to be used in bash_kotlin for bash completions for kt|ktraw ktscript/ktscriptraww functions with: complete -W "${subcommands[*]}" <function>
+        if ( argv.isNotEmpty() && argv[0] == "completions" ) {
+            if ( argv.size == 1 ) {
+                println(super.registeredSubcommandNames().joinToString(" "))
+            } else {
+                val allThings = FS.list((System.getenv("KTSCRIPTSBASE") ?: ".").toPath())
+                println(allThings.filter { it.name.endsWith(".kt") }.joinToString(" ") { it.name })
+            }
+            exitProcess(0)
+        }
     }
 }
 
